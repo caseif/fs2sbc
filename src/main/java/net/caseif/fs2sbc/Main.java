@@ -47,16 +47,14 @@ public class Main {
             switch (args[i]) {
                 case "-i":
                     if (i + 1 == args.length || args[i + 1].startsWith("-")) {
-                        System.err.println("Parameter required for input flag");
-                        System.exit(1);
+                        die("Parameter required for input flag");
                     }
                     setFlag(new CommandFlag<>(CommandFlag.Type.INPUT, args[i + 1]));
                     i++;
                     break;
                 case "-o":
                     if (i + 1 == args.length || args[i + 1].startsWith("-")) {
-                        System.err.println("Parameter required for output flag");
-                        System.exit(1);
+                        die("Parameter required for output flag");
                     }
                     setFlag(new CommandFlag<>(CommandFlag.Type.OUTPUT, args[i + 1]));
                     i++;
@@ -71,24 +69,20 @@ public class Main {
                     setFlag(new CommandFlag<>(CommandFlag.Type.VERBOSE));
                     break;
                 default:
-                    System.err.println("Invalid parameter \"" + args[i] + "\"");
-                    System.exit(1);
+                    die("Invalid parameter \"" + args[i] + "\"");
             }
         }
 
         if (!flags.keySet().contains(CommandFlag.Type.INPUT) || !flags.keySet().contains(CommandFlag.Type.OUTPUT)) {
-            System.err.println("Input and output flags are required");
-            System.exit(1);
+            die("Input and output flags are required");
         }
         if (flags.keySet().contains(CommandFlag.Type.BASE64) && flags.keySet().contains(CommandFlag.Type.BASE91)) {
-            System.err.println("Cannot specify base64 and base91 encoding simultaneously");
-            System.exit(1);
+            die("Cannot specify base64 and base91 encoding simultaneously");
         }
 
         Path input = Paths.get((String) flags.get(CommandFlag.Type.INPUT).getValue());
         if (!Files.exists(input)) {
-            System.err.println("Input path does not exist");
-            System.exit(1);
+            die("Input path does not exist");
         }
 
         Path output = Paths.get((String) flags.get(CommandFlag.Type.OUTPUT).getValue());
@@ -97,8 +91,7 @@ public class Main {
                 Files.delete(output);
             } catch (IOException ex) {
                 ex.printStackTrace();
-                System.err.println("Failed to delete existing output file");
-                System.exit(1);
+                die("Failed to delete existing output file");
             }
         }
 
@@ -109,8 +102,7 @@ public class Main {
             os = Files.newOutputStream(output);
         } catch (IOException ex) {
             ex.printStackTrace();
-            System.err.println("Failed to create output stream");
-            System.exit(1);
+            die("Failed to create output stream");
             return;
         }
 
@@ -119,8 +111,7 @@ public class Main {
             os.flush();
         } catch (IOException ex) {
             ex.printStackTrace();
-            System.err.println("Failed to write to output stream");
-            System.exit(1);
+            die("Failed to write to output stream");
         }
 
         try {
@@ -132,7 +123,7 @@ public class Main {
             os.flush();
         } catch (IOException ex) {
             ex.printStackTrace();
-            System.err.println("Failed to write output stream");
+            die("Failed to write output stream");
         }
     }
 
@@ -160,8 +151,7 @@ public class Main {
                     }
                 } catch (IOException ex) {
                     ex.printStackTrace();
-                    System.err.println("Encountered IOException while writing file " + path.toString());
-                    System.exit(1);
+                    die("Encountered IOException while writing file " + path.toString());
                 }
             }
         }
@@ -176,8 +166,7 @@ public class Main {
 
         output.write(Tag.BLOB);
         if (Files.size(file) > Integer.MAX_VALUE) {
-            System.err.println("Cannot package file " + file.toString() + " - size is greater than Integer.MAX_VALUE");
-            System.exit(0);
+            die("Cannot package file " + file.toString() + " - size is greater than Integer.MAX_VALUE");
         }
         output.write(ByteHelper.getBytes((int) Files.size(file)));
 
@@ -194,6 +183,11 @@ public class Main {
         byte[] name = file.getFileName().toString().getBytes(StandardCharsets.UTF_8);
         output.write(ByteHelper.getBytes((short) (name.length & 0xFF)));
         output.write(name);
+    }
+
+    private static void die(String msg) {
+        System.err.println(msg);
+        System.exit(1);
     }
 
     private class Tag {
