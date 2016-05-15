@@ -1,0 +1,90 @@
+// Apply Gradle plugins
+plugins {
+    id 'java'
+    id 'eclipse'
+    id 'idea'
+    id 'checkstyle'
+
+    id 'net.minecrell.licenser' version '0.2'
+}
+
+defaultTasks 'clean', 'updateLicenses', 'build'
+
+// Project information
+group = 'net.caseif.fs2sbc'
+version = '1.0.0-SNAPSHOT'
+
+// Extended project information
+ext.projectName = 'fs2sbc'
+ext.description = 'Command-line utility for packaging filesystem resources into an SBC blob.'
+ext.inceptionYear = '2016'
+ext.packaging = 'jar'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'sponge'
+        url = 'https://repo.spongepowered.org/maven'
+    }
+}
+
+// Project dependencies
+dependencies {
+    checkstyle 'org.spongepowered:checkstyle:6.1.1-sponge1'
+}
+
+// Read source files using UTF-8
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += '-Xlint:all'
+}
+
+jar {
+    manifest {
+        attributes(
+                'Implementation-Title': project.name,
+                'Implementation-Version': version,
+                'Main-Class': 'net.caseif.fs2sbc.Main'
+        )
+    }
+}
+
+task sourceJar(type: Jar) {
+    from sourceSets.main.java
+    from sourceSets.main.resources
+    classifier = 'sources'
+}
+
+artifacts {
+    archives jar
+    archives sourceJar
+}
+
+// License header formatting
+license {
+    include '**/*.java'
+    ignoreFailures false
+}
+
+// check code style
+checkstyle {
+    configProperties = [
+            'name': project.name,
+            'year': project.inceptionYear,
+            'basedir': project.projectDir,
+            'severity': 'warning'
+    ]
+    configFile = file('etc/checkstyle.xml')
+}
+
+tasks.withType(Checkstyle) {
+    exclude '**/*.properties'
+    exclude '**/*.yml'
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.13'
+}

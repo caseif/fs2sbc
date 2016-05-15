@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suppressions PUBLIC "-//Puppy Crawl//DTD Suppressions 1.1//EN" "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+<suppressions>
+    <!-- global suppressions -->
+    <suppress checks="AbbreviationAsWordInName" files="^src[\\/](main|test)[\\/]java"/>
+    <suppress checks="JavadocMethod" files="^src[\\/](main|test)[\\/]java"/>
+
+    <!-- specific suppressions -->
+    <suppress checks="Indentation" files="package-info\.java"/>
+    <suppress checks="LocalVariableName" files="NmsHelper\.java"/>
+    <suppress checks="MemberName" files="ConfigHelper\.java"/>
+</suppressions>
