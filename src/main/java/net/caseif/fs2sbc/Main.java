@@ -29,6 +29,7 @@ import net.caseif.fs2sbc.util.helper.ByteHelper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -90,13 +91,36 @@ public class Main {
             System.exit(1);
         }
 
-        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        Path output = Paths.get((String) flags.get(CommandFlag.Type.OUTPUT).getValue());
+        if (Files.exists(output)) {
+            try {
+                Files.delete(output);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                System.err.println("Failed to delete existing output file");
+                System.exit(1);
+            }
+        }
+
+        OutputStream os;
+        try {
+            Files.deleteIfExists(output);
+            Files.createFile(output);
+            os = Files.newOutputStream(output);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            System.err.println("Failed to create output stream");
+            System.exit(1);
+            return;
+        }
 
         try {
             os.write(new byte[]{(byte) 0xB1, 0x0B, (byte) 0xFE, 0x57});
+            os.flush();
         } catch (IOException ex) {
             ex.printStackTrace();
             System.err.println("Failed to write to output stream");
+            System.exit(1);
         }
 
         try {
@@ -105,24 +129,10 @@ public class Main {
             } else {
                 writeFile(os, input);
             }
+            os.flush();
         } catch (IOException ex) {
             ex.printStackTrace();
             System.err.println("Failed to write output stream");
-        }
-
-        try {
-            if (flags.keySet().contains(CommandFlag.Type.VERBOSE)) {
-                System.out.println("Writing output to disk");
-            }
-
-            Path output = Paths.get((String) flags.get(CommandFlag.Type.OUTPUT).getValue());
-            if (Files.exists(output)) {
-                Files.delete(output);
-            }
-            Files.write(output, os.toByteArray());
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            System.err.println("Failed to write to output file");
         }
     }
 
@@ -130,7 +140,7 @@ public class Main {
         flags.put(flag.getType(), flag);
     }
 
-    private static void writeDirectory(ByteArrayOutputStream output, Path dir) throws IOException {
+    private static void writeDirectory(OutputStream output, Path dir) throws IOException {
         assert Files.isDirectory(dir);
 
         if (flags.keySet().contains(CommandFlag.Type.VERBOSE)) {
@@ -157,7 +167,7 @@ public class Main {
         }
     }
 
-    private static void writeFile(ByteArrayOutputStream output, Path file) throws IOException {
+    private static void writeFile(OutputStream output, Path file) throws IOException {
         assert !Files.isDirectory(file);
 
         if (flags.keySet().contains(CommandFlag.Type.VERBOSE)) {
@@ -165,21 +175,22 @@ public class Main {
         }
 
         output.write(Tag.BLOB);
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        if (Files.size(file) > Math.pow(2, 32)) {
-            System.err.println("Cannot package file " + file.toString() + " - size is greater than 2^32");
+        if (Files.size(file) > Integer.MAX_VALUE) {
+            System.err.println("Cannot package file " + file.toString() + " - size is greater than Integer.MAX_VALUE");
             System.exit(0);
         }
-        output.write(ByteHelper.getBytes((int) (Files.size(file) & 0xFFFF)));
+        output.write(ByteHelper.getBytes((int) Files.size(file)));
+
         InputStream stream = Files.newInputStream(file);
-        int b;
-        while ((b = stream.read()) != -1) {
-            buffer.write(b);
-        }
-        output.write(buffer.toByteArray());
+        byte[] bytes = new byte[(int) Files.size(file)];
+        //noinspection ResultOfMethodCallIgnored
+        stream.read(bytes);
+
+        output.write(bytes);
+        output.flush();
     }
 
-    private static void writeName(ByteArrayOutputStream output, Path file) throws IOException {
+    private static void writeName(OutputStream output, Path file) throws IOException {
         byte[] name = file.getFileName().toString().getBytes(StandardCharsets.UTF_8);
         output.write(ByteHelper.getBytes((short) (name.length & 0xFF)));
         output.write(name);
