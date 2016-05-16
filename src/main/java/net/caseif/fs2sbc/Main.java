@@ -42,42 +42,8 @@ public class Main {
     private static Map<CommandFlag.Type, CommandFlag<?>> flags = new HashMap<>();
 
     public static void main(String[] args) {
-        for (int i = 0; i < args.length; i++) {
-            switch (args[i]) {
-                case "-i":
-                    if (i + 1 == args.length || args[i + 1].startsWith("-")) {
-                        die("Parameter required for input flag");
-                    }
-                    setFlag(new CommandFlag<>(CommandFlag.Type.INPUT, args[i + 1]));
-                    i++;
-                    break;
-                case "-o":
-                    if (i + 1 == args.length || args[i + 1].startsWith("-")) {
-                        die("Parameter required for output flag");
-                    }
-                    setFlag(new CommandFlag<>(CommandFlag.Type.OUTPUT, args[i + 1]));
-                    i++;
-                    break;
-                case "-b64":
-                    setFlag(new CommandFlag<>(CommandFlag.Type.BASE64));
-                    break;
-                case "-b91":
-                    setFlag(new CommandFlag<>(CommandFlag.Type.BASE91));
-                    break;
-                case "-v":
-                    setFlag(new CommandFlag<>(CommandFlag.Type.VERBOSE));
-                    break;
-                default:
-                    die("Invalid parameter \"" + args[i] + "\"");
-            }
-        }
-
-        if (!flags.keySet().contains(CommandFlag.Type.INPUT) || !flags.keySet().contains(CommandFlag.Type.OUTPUT)) {
-            die("Input and output flags are required");
-        }
-        if (flags.keySet().contains(CommandFlag.Type.BASE64) && flags.keySet().contains(CommandFlag.Type.BASE91)) {
-            die("Cannot specify base64 and base91 encoding simultaneously");
-        }
+        readParameters(args);
+        validateParameters();
 
         Path input = Paths.get((String) flags.get(CommandFlag.Type.INPUT).getValue());
         if (!Files.exists(input)) {
@@ -87,66 +53,13 @@ public class Main {
         if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
             System.out.println("Opening stream to temp file");
         }
-        OutputStream os;
         Path tempOut = getTempDirectory().resolve("fs2sbc." + System.currentTimeMillis() + ".tmp");
-        try {
-            Files.deleteIfExists(tempOut);
-            Files.createFile(tempOut);
-            os = Files.newOutputStream(tempOut);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            die("Failed to create output stream");
-            return;
-        }
+        OutputStream os = createOutputStream(tempOut);
 
-        try {
-            os.write(new byte[]{(byte) 0xB1, 0x0B, (byte) 0xFE, 0x57});
-            os.flush();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            die("Failed to write to output stream");
-        }
+        writeMagicNumber(os);
+        writeBody(input, os);
 
-        try {
-            if (Files.isDirectory(input)) {
-                writeDirectory(os, input);
-            } else {
-                writeFile(os, input);
-            }
-            os.flush();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            die("Failed to write output stream");
-        }
-
-        try {
-            if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
-                System.out.println("Copying temp file to destination");
-            }
-
-            Path output = Paths.get((String) flags.get(CommandFlag.Type.OUTPUT).getValue());
-            Files.deleteIfExists(output);
-            Files.createFile(output);
-
-            OutputStream out = Files.newOutputStream(output);
-            InputStream in = Files.newInputStream(tempOut);
-            byte[] buffer = new byte[1024];
-            int len = in.read(buffer);
-            while (len != -1) {
-                out.write(buffer, 0, len);
-                len = in.read(buffer);
-            }
-            in.close();
-
-            if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
-                System.out.println("Deleting temp file");
-            }
-            Files.delete(tempOut);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            die("Failed to copy temp file");
-            return;
-        }
+        copyTempFile(tempOut);
     }
 
     private static void setFlag(CommandFlag<?> flag) {
@@ -220,6 +133,110 @@ public class Main {
 
     private static Path getTempDirectory() {
         return Paths.get(System.getProperty("java.io.tmpdir"));
+    }
+
+    private static void readParameters(String[] args) {
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "-i":
+                    if (i + 1 == args.length || args[i + 1].startsWith("-")) {
+                        die("Parameter required for input flag");
+                    }
+                    setFlag(new CommandFlag<>(CommandFlag.Type.INPUT, args[i + 1]));
+                    i++;
+                    break;
+                case "-o":
+                    if (i + 1 == args.length || args[i + 1].startsWith("-")) {
+                        die("Parameter required for output flag");
+                    }
+                    setFlag(new CommandFlag<>(CommandFlag.Type.OUTPUT, args[i + 1]));
+                    i++;
+                    break;
+                case "-b64":
+                    setFlag(new CommandFlag<>(CommandFlag.Type.BASE64));
+                    break;
+                case "-b91":
+                    setFlag(new CommandFlag<>(CommandFlag.Type.BASE91));
+                    break;
+                case "-v":
+                    setFlag(new CommandFlag<>(CommandFlag.Type.VERBOSE));
+                    break;
+                default:
+                    die("Invalid parameter \"" + args[i] + "\"");
+            }
+        }
+    }
+
+    private static void validateParameters() {
+        if (!flags.keySet().contains(CommandFlag.Type.INPUT) || !flags.keySet().contains(CommandFlag.Type.OUTPUT)) {
+            die("Input and output flags are required");
+        }
+        if (flags.keySet().contains(CommandFlag.Type.BASE64) && flags.keySet().contains(CommandFlag.Type.BASE91)) {
+            die("Cannot specify base64 and base91 encoding simultaneously");
+        }
+    }
+
+    private static void writeMagicNumber(OutputStream os) {
+        try {
+            os.write(new byte[]{(byte) 0xB1, 0x0B, (byte) 0xFE, 0x57});
+            os.flush();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            die("Failed to write to output stream");
+        }
+    }
+
+    private static void writeBody(Path input, OutputStream os) {
+        try {
+            if (Files.isDirectory(input)) {
+                writeDirectory(os, input);
+            } else {
+                writeFile(os, input);
+            }
+            os.flush();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            die("Failed to write output stream");
+        }
+    }
+
+    private static void copyTempFile(Path tempOut) {
+        try {
+            if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
+                System.out.println("Copying temp file to destination");
+            }
+
+            Path output = Paths.get((String) flags.get(CommandFlag.Type.OUTPUT).getValue());
+            OutputStream out = createOutputStream(output);
+            InputStream in = Files.newInputStream(tempOut);
+            byte[] buffer = new byte[1024];
+            int len = in.read(buffer);
+            while (len != -1) {
+                out.write(buffer, 0, len);
+                len = in.read(buffer);
+            }
+            in.close();
+
+            if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
+                System.out.println("Deleting temp file");
+            }
+            Files.delete(tempOut);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            die("Failed to copy temp file");
+        }
+    }
+
+    private static OutputStream createOutputStream(Path path) {
+        try {
+            Files.deleteIfExists(path);
+            Files.createFile(path);
+            return Files.newOutputStream(path);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            die("Failed to create output stream to temp file");
+            return null; // never executes
+        }
     }
 
 }
