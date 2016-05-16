@@ -74,14 +74,14 @@ public class Main {
             System.out.println("Processing directory " + dir.toString());
         }
 
+        output.write(Tag.GROUP);
         writeName(output, dir);
+
         try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(dir)) {
             for (Path path : directoryStream) {
                 try {
                     if (Files.isDirectory(path)) {
-                        output.write(Tag.GROUP);
                         writeDirectory(output, path);
-                        output.write(Tag.END);
                     } else {
                         writeFile(output, path);
                     }
@@ -91,6 +91,8 @@ public class Main {
                 }
             }
         }
+
+        output.write(Tag.END);
     }
 
     private static void writeFile(OutputStream output, Path file) throws IOException {

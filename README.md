@@ -12,3 +12,8 @@
 | -o | Path to output file (byte blob will be written here
 | -b | Specifies output to be written as base64 string
 | -v | Specifies verbose output to be written to stdout
+
+### Planned Features
+- Extraction (sbc2fs)
+- Built-in `gzip` compression via command flag
+- Base91 encoding (tentative)
