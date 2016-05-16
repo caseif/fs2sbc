@@ -123,9 +123,16 @@ public class Main {
         output.write(name);
     }
 
-    private static void die(String msg) {
+    private static void die(String msg, boolean printUsage) {
         System.err.println(msg);
+        if (printUsage) {
+            System.err.println("Pass --help flag for usage information");
+        }
         System.exit(1);
+    }
+
+    private static void die(String msg) {
+        die(msg, false);
     }
 
     private class Tag {
@@ -141,35 +148,44 @@ public class Main {
     private static void readParameters(String[] args) {
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
+                case "-?":
+                case "--help":
+                    displayHelp();
+                    System.exit(0);
+                    break;
                 case "-i":
+                case "--input":
                     if (i + 1 == args.length || args[i + 1].startsWith("-")) {
-                        die("Parameter required for input flag");
+                        die("Parameter required for input flag", true);
                     }
                     setFlag(new CommandFlag<>(CommandFlag.Type.INPUT, args[i + 1]));
                     i++;
                     break;
                 case "-o":
+                case "--output":
                     if (i + 1 == args.length || args[i + 1].startsWith("-")) {
-                        die("Parameter required for output flag");
+                        die("Parameter required for output flag", true);
                     }
                     setFlag(new CommandFlag<>(CommandFlag.Type.OUTPUT, args[i + 1]));
                     i++;
                     break;
                 case "-b":
+                case "--base64":
                     setFlag(new CommandFlag<>(CommandFlag.Type.BASE64));
                     break;
                 case "-v":
+                case "--verbose":
                     setFlag(new CommandFlag<>(CommandFlag.Type.VERBOSE));
                     break;
                 default:
-                    die("Invalid parameter \"" + args[i] + "\"");
+                    die("Invalid parameter \"" + args[i] + "\"", true);
             }
         }
     }
 
     private static void validateParameters() {
         if (!flags.keySet().contains(CommandFlag.Type.INPUT) || !flags.keySet().contains(CommandFlag.Type.OUTPUT)) {
-            die("Input and output flags are required");
+            die("Input and output flags are required", true);
         }
     }
 
@@ -245,6 +261,26 @@ public class Main {
             die("Failed to create output stream to temp file");
             return null; // never executes
         }
+    }
+
+    private static void displayHelp() {
+        System.out.println(Main.class.getPackage().getImplementationTitle()
+                + " version " + Main.class.getPackage().getImplementationVersion()
+                + " by " + Main.class.getPackage().getImplementationVendor());
+        System.out.println();
+
+        System.out.println("Usage: java -jar fs2sbc.jar [flags] -i [input file] -o [output file]");
+        System.out.println("Parameters:");
+        System.out.println("    -i, --input");
+        System.out.println("                     Path to input directory or file (resource to package)");
+        System.out.println("    -o, --output");
+        System.out.println("                     Path to output file (byte blob will be written here)");
+        System.out.println("    -b, --base64");
+        System.out.println("                     Specifies output to be written as base64 string");
+        System.out.println("    -v, --verbose");
+        System.out.println("                     Specifies verbose output to be written to stdout");
+        System.out.println("    -?, --help");
+        System.out.println("                     Displays usage information");
     }
 
 }

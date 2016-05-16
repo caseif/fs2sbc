@@ -12,11 +12,12 @@ defaultTasks 'clean', 'updateLicenses', 'build'
 
 // Project information
 group = 'net.caseif.fs2sbc'
-version = '1.0.0-SNAPSHOT'
+version = '1.0.0'
 
 // Extended project information
 ext.projectName = 'fs2sbc'
 ext.description = 'Command-line utility for packaging filesystem resources into an SBC blob.'
+ext.author = 'Max Roncace'
 ext.inceptionYear = '2016'
 ext.packaging = 'jar'
 
@@ -46,6 +47,7 @@ jar {
     manifest {
         attributes(
                 'Implementation-Title': project.name,
+                'Implementation-Vendor': author,
                 'Implementation-Version': version,
                 'Main-Class': 'net.caseif.fs2sbc.Main'
         )
