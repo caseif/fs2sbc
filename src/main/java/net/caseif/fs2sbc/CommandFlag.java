@@ -56,7 +56,6 @@ public class CommandFlag<T> {
         INPUT,
         OUTPUT,
         BASE64,
-        BASE91,
         VERBOSE
     }
 

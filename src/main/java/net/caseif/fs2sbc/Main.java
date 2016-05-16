@@ -34,6 +34,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,7 +60,7 @@ public class Main {
         writeMagicNumber(os);
         writeBody(input, os);
 
-        copyTempFile(tempOut);
+        writeToTarget(tempOut);
     }
 
     private static void setFlag(CommandFlag<?> flag) {
@@ -152,11 +153,8 @@ public class Main {
                     setFlag(new CommandFlag<>(CommandFlag.Type.OUTPUT, args[i + 1]));
                     i++;
                     break;
-                case "-b64":
+                case "-b":
                     setFlag(new CommandFlag<>(CommandFlag.Type.BASE64));
-                    break;
-                case "-b91":
-                    setFlag(new CommandFlag<>(CommandFlag.Type.BASE91));
                     break;
                 case "-v":
                     setFlag(new CommandFlag<>(CommandFlag.Type.VERBOSE));
@@ -170,9 +168,6 @@ public class Main {
     private static void validateParameters() {
         if (!flags.keySet().contains(CommandFlag.Type.INPUT) || !flags.keySet().contains(CommandFlag.Type.OUTPUT)) {
             die("Input and output flags are required");
-        }
-        if (flags.keySet().contains(CommandFlag.Type.BASE64) && flags.keySet().contains(CommandFlag.Type.BASE91)) {
-            die("Cannot specify base64 and base91 encoding simultaneously");
         }
     }
 
@@ -200,7 +195,7 @@ public class Main {
         }
     }
 
-    private static void copyTempFile(Path tempOut) {
+    private static void writeToTarget(Path tempOut) {
         try {
             if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
                 System.out.println("Copying temp file to destination");
@@ -209,11 +204,22 @@ public class Main {
             Path output = Paths.get((String) flags.get(CommandFlag.Type.OUTPUT).getValue());
             OutputStream out = createOutputStream(output);
             InputStream in = Files.newInputStream(tempOut);
-            byte[] buffer = new byte[1024];
-            int len = in.read(buffer);
-            while (len != -1) {
-                out.write(buffer, 0, len);
-                len = in.read(buffer);
+
+            if (flags.containsKey(CommandFlag.Type.BASE64)) {
+                System.out.println("Base64 encoding specified - encoding output");
+                byte[] buffer = new byte[1200]; // array size must be multiple of 3
+                int len = in.read(buffer);
+                while (len != -1) {
+                    out.write(Base64.getEncoder().encode(buffer), 0, len);
+                    len = in.read(buffer);
+                }
+            } else {
+                byte[] buffer = new byte[1024];
+                int len = in.read(buffer);
+                while (len != -1) {
+                    out.write(buffer, 0, len);
+                    len = in.read(buffer);
+                }
             }
             in.close();
 
