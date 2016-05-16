@@ -26,7 +26,6 @@ package net.caseif.fs2sbc;
 
 import net.caseif.fs2sbc.util.helper.ByteHelper;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -85,21 +84,15 @@ public class Main {
             die("Input path does not exist");
         }
 
-        Path output = Paths.get((String) flags.get(CommandFlag.Type.OUTPUT).getValue());
-        if (Files.exists(output)) {
-            try {
-                Files.delete(output);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-                die("Failed to delete existing output file");
-            }
+        if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
+            System.out.println("Opening stream to temp file");
         }
-
         OutputStream os;
+        Path tempOut = getTempDirectory().resolve("fs2sbc." + System.currentTimeMillis() + ".tmp");
         try {
-            Files.deleteIfExists(output);
-            Files.createFile(output);
-            os = Files.newOutputStream(output);
+            Files.deleteIfExists(tempOut);
+            Files.createFile(tempOut);
+            os = Files.newOutputStream(tempOut);
         } catch (IOException ex) {
             ex.printStackTrace();
             die("Failed to create output stream");
@@ -125,6 +118,35 @@ public class Main {
             ex.printStackTrace();
             die("Failed to write output stream");
         }
+
+        try {
+            if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
+                System.out.println("Copying temp file to destination");
+            }
+
+            Path output = Paths.get((String) flags.get(CommandFlag.Type.OUTPUT).getValue());
+            Files.deleteIfExists(output);
+            Files.createFile(output);
+
+            OutputStream out = Files.newOutputStream(output);
+            InputStream in = Files.newInputStream(tempOut);
+            byte[] buffer = new byte[1024];
+            int len = in.read(buffer);
+            while (len != -1) {
+                out.write(buffer, 0, len);
+                len = in.read(buffer);
+            }
+            in.close();
+
+            if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
+                System.out.println("Deleting temp file");
+            }
+            Files.delete(tempOut);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            die("Failed to copy temp file");
+            return;
+        }
     }
 
     private static void setFlag(CommandFlag<?> flag) {
@@ -134,7 +156,7 @@ public class Main {
     private static void writeDirectory(OutputStream output, Path dir) throws IOException {
         assert Files.isDirectory(dir);
 
-        if (flags.keySet().contains(CommandFlag.Type.VERBOSE)) {
+        if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
             System.out.println("Processing directory " + dir.toString());
         }
 
@@ -160,7 +182,7 @@ public class Main {
     private static void writeFile(OutputStream output, Path file) throws IOException {
         assert !Files.isDirectory(file);
 
-        if (flags.keySet().contains(CommandFlag.Type.VERBOSE)) {
+        if (flags.containsKey(CommandFlag.Type.VERBOSE)) {
             System.out.println("Processing file " + file.toString());
         }
 
@@ -194,6 +216,10 @@ public class Main {
         private static final byte END = 0x00;
         private static final byte GROUP = 0x01;
         private static final byte BLOB = 0x02;
+    }
+
+    private static Path getTempDirectory() {
+        return Paths.get(System.getProperty("java.io.tmpdir"));
     }
 
 }
